@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gym Tracker Pro v2</title>
+    <style>
+        :root {
+            --bg: #121212;
+            --surface: #1e1e1e;
+            --primary: #bb86fc;
+            --secondary: #03dac6;
+            --text: #e0e0e0;
+            --text-muted: #a0a0a0;
+            --danger: #cf6679;
+            --warn: #ffb74d;
+            --border: #333;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        
+        body { background-color: var(--bg); color: var(--text); padding-bottom: 80px; }
+        
+        /* Layout & Typography */
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        h1, h2, h3 { color: var(--primary); margin-bottom: 15px; }
+        h1 { text-align: center; font-size: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 15px; }
+        
+        /* Navigation Tabs */
+        .nav { display: flex; justify-content: space-around; margin-bottom: 20px; background: var(--surface); border-radius: 8px; padding: 5px; }
+        .nav-btn { flex: 1; padding: 10px; border: none; background: transparent; color: var(--text-muted); cursor: pointer; font-weight: bold; border-radius: 6px; transition: 0.2s; }
+        .nav-btn.active { background: var(--primary); color: #000; }
+
+        /* Forms */
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; color: var(--text-muted); font-size: 0.9rem; }
+        input, select, textarea { width: 100%; padding: 12px; background: var(--surface); border: 1px solid var(--border); color: var(--text); border-radius: 6px; font-size: 1rem; }
+        textarea { resize: vertical; min-height: 60px; font-family: inherit; }
+        input:focus, textarea:focus { outline: 2px solid var(--primary); border-color: transparent; }
+        
+        /* Edit Mode Indicator */
+        .edit-mode-active { border: 2px solid var(--warn); padding: 5px;box-shadow: 0 0 10px rgba(255, 183, 77, 0.2); }
+        .edit-label { display: none; color: var(--warn); font-weight: bold; text-align: center; margin-bottom: 10px; }
+        
+        /* Buttons */
+        .btn { width: 100%; padding: 14px; border: none; border-radius: 6px; font-size: 1rem; font-weight: bold; cursor: pointer; margin-top: 10px; transition: 0.2s; }
+        .btn-primary { background: var(--secondary); color: #000; }
+        .btn-warn { background: var(--warn); color: #000; } /* For Update button */
+        .btn-danger { background: var(--danger); color: #fff; margin-top: 20px; }
+        .btn-sm { width: auto; padding: 6px 12px; font-size: 0.8rem; margin: 0; display: inline-block; }
+        .btn-ghost { background: transparent; border: 1px solid var(--text-muted); color: var(--text-muted); }
+
+        /* Cards & History */
+        .card { background: var(--surface); border-radius: 8px; padding: 15px; margin-bottom: 15px; border: 1px solid var(--border); }
+        .history-header { display: flex; justify-content: space-between; align-items: flex-start; }
+        .history-meta { font-size: 0.85rem; color: var(--text-muted); margin-top: 4px; }
+        .history-highlight { color: var(--secondary); font-weight: bold; }
+        .history-notes { margin-top: 8px; font-size: 0.85rem; color: var(--text-muted); font-style: italic; border-left: 2px solid var(--border); padding-left: 8px; }
+        .action-row { display: flex; gap: 10px; justify-content: flex-end; margin-top: 10px; }
+
+        /* Stats & Charts */
+        .filter-bar { display: flex; gap: 5px; margin-bottom: 15px; justify-content: center; }
+        .filter-btn { background: var(--surface); border: 1px solid var(--border); color: var(--text-muted); padding: 5px 10px; border-radius: 4px; font-size: 0.8rem; cursor: pointer; }
+        .filter-btn.active { background: var(--primary); color: #000; border-color: var(--primary); }
+
+        .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        .stat-box { background: var(--surface); padding: 15px; border-radius: 8px; text-align: center; }
+        .stat-val { font-size: 1.5rem; font-weight: bold; color: var(--secondary); }
+        .stat-label { font-size: 0.8rem; color: var(--text-muted); }
+        
+        canvas { width: 100%; height: 250px; background: var(--surface); border-radius: 8px; margin-top: 10px; border: 1px solid var(--border); }
+
+        /* Utility */
+        .hidden { display: none; }
+        .search-bar { margin-bottom: 15px; }
+        
+        @media (max-width: 400px) { .stat-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Gym Tracker <span id="headerDate" style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-top: 5px;"></span></h1>
+    </header>
+
+    <nav class="nav">
+        <button class="nav-btn active" onclick="switchTab('log')">Log</button>
+        <button class="nav-btn" onclick="switchTab('history')">History</button>
+        <button class="nav-btn" onclick="switchTab('progress')">Progress</button>
+    </nav>
+
+    <section id="log-section">
+        <div id="editLabel" class="edit-label">⚠️ EDITING MODE</div>
+        <form id="workoutForm" class="">
+            <div class="form-group">
+                <label>Muscle Group</label>
+                <input type="text" id="muscleGroup" list="muscleList" placeholder="e.g. Chest" required autocomplete="off">
+                <datalist id="muscleList"></datalist>
+            </div>
+
+            <div class="form-group">
+                <label>Exercise</label>
+                <input type="text" id="exerciseName" list="exerciseList" placeholder="e.g. Bench Press" required autocomplete="off">
+                <datalist id="exerciseList"></datalist>
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <div class="form-group" style="flex: 1;">
+                    <label>Sets</label>
+                    <input type="number" id="sets" placeholder="3" required>
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label>Reps</label>
+                    <input type="number" id="reps" placeholder="10" required>
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label>Weight (kg/lb)</label>
+                    <input type="number" id="weight" placeholder="50" step="0.5" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Notes (Optional)</label>
+                <textarea id="notes" placeholder="e.g. Felt strong, seat height 4..."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Date</label>
+                <input type="date" id="date" required>
+            </div>
+
+            <button type="submit" id="submitBtn" class="btn btn-primary">Log Workout</button>
+            <button type="button" id="cancelEditBtn" class="btn btn-ghost hidden" onclick="cancelEditMode()">Cancel Edit</button>
+        </form>
+    </section>
+
+    <section id="history-section" class="hidden">
+        <input type="text" id="searchHistory" class="search-bar" placeholder="Search muscle, exercise..." onkeyup="renderHistory()">
+        <div id="historyList"></div>
+        <button class="btn btn-danger" onclick="clearAllData()">Clear All Data</button>
+    </section>
+
+    <section id="progress-section" class="hidden">
+        <div class="form-group">
+            <label>Select Exercise to Track</label>
+            <select id="progressExerciseSelect" onchange="renderProgress()">
+                <option value="">-- Select Exercise --</option>
+            </select>
+        </div>
+
+        <div id="statsContainer" class="hidden">
+            <div class="filter-bar">
+                <button class="filter-btn" onclick="setTimeRange('1m')">1 Month</button>
+                <button class="filter-btn" onclick="setTimeRange('6m')">6 Months</button>
+                <button class="filter-btn" onclick="setTimeRange('1y')">1 Year</button>
+                <button class="filter-btn active" onclick="setTimeRange('all')">All Time</button>
+            </div>
+
+            <div class="stat-grid">
+                <div class="stat-box">
+                    <div class="stat-val" id="maxWeight">0</div>
+                    <div class="stat-label">Best Weight</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-val" id="estOneRM">0</div>
+                    <div class="stat-label">Est. 1 Rep Max</div>
+                </div>
+            </div>
+
+            <h3>Progress Chart</h3>
+            <canvas id="progressChart"></canvas>
+        </div>
+    </section>
+</div>
+
+<script>
+    // --- STATE MANAGEMENT ---
+    const DB_KEY = 'gym_tracker_data_v2';
+    // Migration: Try to read old key if new one doesn't exist, otherwise empty
+    let workouts = JSON.parse(localStorage.getItem(DB_KEY)) || JSON.parse(localStorage.getItem('gym_tracker_data_v1')) || [];
+    
+    // State for Editing
+    let isEditing = false;
+    let editId = null;
+    let currentRange = 'all'; // '1m', '6m', '1y', 'all'
+
+    // --- DOM ELEMENTS ---
+    const muscleInput = document.getElementById('muscleGroup');
+    const exerciseInput = document.getElementById('exerciseName');
+    const dateInput = document.getElementById('date');
+    const notesInput = document.getElementById('notes');
+    const muscleList = document.getElementById('muscleList');
+    const exerciseList = document.getElementById('exerciseList');
+    const submitBtn = document.getElementById('submitBtn');
+    const cancelEditBtn = document.getElementById('cancelEditBtn');
+    const editLabel = document.getElementById('editLabel');
+    const form = document.getElementById('workoutForm');
+
+    // --- INIT ---
+    function init() {
+        dateInput.valueAsDate = new Date();
+        document.getElementById('headerDate').textContent = new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        
+        updateDatalists();
+        renderHistory();
+        populateProgressSelect();
+    }
+
+    // --- LOGIC: AUTOCOMPLETE ---
+    function updateDatalists() {
+        const muscles = [...new Set(workouts.map(w => w.muscle))].sort();
+        muscleList.innerHTML = muscles.map(m => `<option value="${m}">`).join('');
+
+        muscleInput.addEventListener('input', () => {
+            const currentMuscle = muscleInput.value;
+            const exercises = [...new Set(workouts
+                .filter(w => w.muscle.toLowerCase() === currentMuscle.toLowerCase())
+                .map(w => w.exercise)
+            )].sort();
+            
+            exerciseList.innerHTML = exercises.map(e => `<option value="${e}">`).join('');
+        });
+    }
+
+    // --- LOGIC: CREATE / UPDATE ---
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+
+        const formData = {
+            id: isEditing ? editId : Date.now(),
+            muscle: document.getElementById('muscleGroup').value.trim(),
+            exercise: document.getElementById('exerciseName').value.trim(),
+            sets: Number(document.getElementById('sets').value),
+            reps: Number(document.getElementById('reps').value),
+            weight: Number(document.getElementById('weight').value),
+            notes: document.getElementById('notes').value.trim(),
+            date: document.getElementById('date').value
+        };
+
+        if (isEditing) {
+            // Update existing
+            const index = workouts.findIndex(w => w.id === editId);
+            if (index !== -1) workouts[index] = formData;
+            cancelEditMode(); // Exit edit mode
+            alert('Workout Updated!');
+        } else {
+            // Create new
+            workouts.unshift(formData);
+            resetFormInputs();
+            alert('Workout Saved! 💪');
+        }
+
+        saveData();
+        updateDatalists();
+        populateProgressSelect();
+    });
+
+    function resetFormInputs() {
+        document.getElementById('sets').value = '';
+        document.getElementById('reps').value = '';
+        document.getElementById('weight').value = '';
+        document.getElementById('notes').value = '';
+        // We leave muscle, exercise, and date as users often log same session
+    }
+
+    function saveData() {
+        localStorage.setItem(DB_KEY, JSON.stringify(workouts));
+    }
+
+    // --- LOGIC: EDIT MODE ---
+    function loadIntoEditMode(id) {
+        const workout = workouts.find(w => w.id === id);
+        if (!workout) return;
+
+        // Switch Tab
+        switchTab('log');
+
+        // Set Values
+        document.getElementById('muscleGroup').value = workout.muscle;
+        document.getElementById('exerciseName').value = workout.exercise;
+        document.getElementById('sets').value = workout.sets;
+        document.getElementById('reps').value = workout.reps;
+        document.getElementById('weight').value = workout.weight;
+        document.getElementById('date').value = workout.date;
+        document.getElementById('notes').value = workout.notes || '';
+
+        // UI Changes
+        isEditing = true;
+        editId = id;
+        form.classList.add('edit-mode-active');
+        editLabel.style.display = 'block';
+        submitBtn.textContent = 'Update Workout';
+        submitBtn.classList.remove('btn-primary');
+        submitBtn.classList.add('btn-warn');
+        cancelEditBtn.classList.remove('hidden');
+    }
+
+    function cancelEditMode() {
+        isEditing = false;
+        editId = null;
+        form.classList.remove('edit-mode-active');
+        editLabel.style.display = 'none';
+        submitBtn.textContent = 'Log Workout';
+        submitBtn.classList.add('btn-primary');
+        submitBtn.classList.remove('btn-warn');
+        cancelEditBtn.classList.add('hidden');
+        resetFormInputs();
+        dateInput.valueAsDate = new Date();
+    }
+
+    // --- LOGIC: HISTORY ---
+    function renderHistory() {
+        const query = document.getElementById('searchHistory').value.toLowerCase();
+        const container = document.getElementById('historyList');
+        
+        const filtered = workouts.filter(w => 
+            w.muscle.toLowerCase().includes(query) || 
+            w.exercise.toLowerCase().includes(query) ||
+            w.date.includes(query)
+        );
+
+        if (filtered.length === 0) {
+            container.innerHTML = '<p style="text-align:center; color:var(--text-muted)">No workouts found.</p>';
+            return;
+        }
+
+        container.innerHTML = filtered.map(w => `
+            <div class="card">
+                <div class="history-header">
+                    <div>
+                        <div style="font-weight: bold; font-size: 1.1rem; color: var(--primary)">${w.exercise}</div> 
+                        <div style="font-size:0.8rem; color:var(--text-muted)">${w.muscle}</div>
+                    </div>
+                    <div style="text-align:right; font-size: 0.85rem; color:var(--text-muted)">
+                        ${w.date}
+                    </div>
+                </div>
+                
+                <div style="margin-top: 10px;">
+                    <span class="history-highlight" style="font-size: 1.2rem;">${w.weight}kg</span> 
+                    <span style="color:var(--text-muted)">x ${w.sets} sets x ${w.reps} reps</span>
+                </div>
+
+                ${w.notes ? `<div class="history-notes">📝 ${w.notes}</div>` : ''}
+
+                <div class="action-row">
+                    <button class="btn btn-sm btn-ghost" onclick="loadIntoEditMode(${w.id})">Edit</button>
+                    <button class="btn btn-sm" onclick="deleteWorkout(${w.id})" style="background:transparent; border:1px solid var(--danger); color: var(--danger)">Delete</button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function deleteWorkout(id) {
+        if(confirm('Delete this entry?')) {
+            workouts = workouts.filter(w => w.id !== id);
+            saveData();
+            renderHistory();
+            updateDatalists();
+            populateProgressSelect();
+        }
+    }
+
+    function clearAllData() {
+        if(confirm('ARE YOU SURE? This will delete all history.')) {
+            localStorage.removeItem(DB_KEY);
+            localStorage.removeItem('gym_tracker_data_v1'); // clean old key too
+            workouts = [];
+            window.location.reload();
+        }
+    }
+
+    // --- LOGIC: PROGRESS ---
+    function populateProgressSelect() {
+        const select = document.getElementById('progressExerciseSelect');
+        const exercises = [...new Set(workouts.map(w => w.exercise))].sort();
+        
+        // Save current selection if exists
+        const current = select.value;
+        
+        select.innerHTML = '<option value="">-- Select Exercise --</option>' + 
+            exercises.map(e => `<option value="${e}">${e}</option>`).join('');
+            
+        if(exercises.includes(current)) select.value = current;
+    }
+
+    function setTimeRange(range) {
+        currentRange = range;
+        // Update button UI
+        document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+        event.target.classList.add('active');
+        renderProgress(); // Redraw
+    }
+
+    function renderProgress() {
+        const exerciseName = document.getElementById('progressExerciseSelect').value;
+        const container = document.getElementById('statsContainer');
+        
+        if (!exerciseName) {
+            container.classList.add('hidden');
+            return;
+        }
+        
+        container.classList.remove('hidden');
+
+        // 1. Filter by Exercise
+        let data = workouts
+            .filter(w => w.exercise === exerciseName)
+            .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        // 2. Filter by Time Range
+        const now = new Date();
+        if (currentRange !== 'all') {
+            const cutoff = new Date();
+            if (currentRange === '1m') cutoff.setMonth(now.getMonth() - 1);
+            if (currentRange === '6m') cutoff.setMonth(now.getMonth() - 6);
+            if (currentRange === '1y') cutoff.setFullYear(now.getFullYear() - 1);
+            
+            data = data.filter(w => new Date(w.date) >= cutoff);
+        }
+
+        if (data.length === 0) {
+            // Handle empty data for range
+            document.getElementById('maxWeight').innerText = "-";
+            document.getElementById('estOneRM').innerText = "-";
+            drawEmptyChart("No data in this time range");
+            return;
+        }
+
+        // 3. Calculate Stats
+        const maxWeight = Math.max(...data.map(w => w.weight));
+        
+        // Epley Formula: Weight * (1 + Reps/30)
+        const oneRMs = data.map(w => w.weight * (1 + w.reps / 30));
+        const bestOneRM = Math.max(...oneRMs).toFixed(1);
+
+        document.getElementById('maxWeight').innerText = maxWeight + 'kg';
+        document.getElementById('estOneRM').innerText = bestOneRM + 'kg';
+
+        // 4. Draw Chart
+        drawChart(data);
+    }
+
+    function drawEmptyChart(msg) {
+        const canvas = document.getElementById('progressChart');
+        const ctx = canvas.getContext('2d');
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+        ctx.clearRect(0,0, canvas.width, canvas.height);
+        ctx.fillStyle = "#a0a0a0";
+        ctx.font = "14px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(msg, canvas.width/2, canvas.height/2);
+    }
+
+    function drawChart(data) {
+        const canvas = document.getElementById('progressChart');
+        const ctx = canvas.getContext('2d');
+        
+        const dpr = window.devicePixelRatio || 1;
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        ctx.scale(dpr, dpr);
+        
+        const padding = 40;
+        const width = rect.width;
+        const height = rect.height;
+        const chartWidth = width - (padding * 2);
+        const chartHeight = height - (padding * 2);
+
+        ctx.clearRect(0, 0, width, height);
+
+        // Get limits
+        const weights = data.map(d => d.weight);
+        let minVal = Math.min(...weights) * 0.9;
+        let maxVal = Math.max(...weights) * 1.1;
+        if (minVal === maxVal) { minVal = 0; maxVal = maxVal + 10; } // Handle single value case
+
+        const getX = (index) => padding + (index * (chartWidth / Math.max(1, data.length - 1)));
+        const getY = (val) => height - padding - ((val - minVal) / (maxVal - minVal)) * chartHeight;
+
+        // Draw Axes
+        ctx.beginPath();
+        ctx.strokeStyle = "#333";
+        ctx.lineWidth = 1;
+        ctx.moveTo(padding, padding);
+        ctx.lineTo(padding, height - padding);
+        ctx.lineTo(width - padding, height - padding);
+        ctx.stroke();
+
+        // Draw Line
+        if (data.length > 1) {
+            ctx.beginPath();
+            ctx.strokeStyle = "#bb86fc";
+            ctx.lineWidth = 3;
+            data.forEach((d, i) => {
+                const x = getX(i);
+                const y = getY(d.weight);
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+        }
+
+        // Draw Points & Tooltips
+        data.forEach((d, i) => {
+            const x = getX(i);
+            const y = getY(d.weight);
+            
+            // Dot
+            ctx.beginPath();
+            ctx.fillStyle = "#03dac6";
+            ctx.arc(x, y, 4, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Labels (Smart spacing)
+            // Show label if it's start, end, or max weight point
+            const isMax = d.weight === Math.max(...weights);
+            const isEdge = i === 0 || i === data.length - 1;
+            
+            if (isEdge || isMax) {
+                ctx.fillStyle = "#a0a0a0";
+                ctx.font = "10px sans-serif";
+                ctx.textAlign = "center";
+                
+                // Date
+                const dateStr = new Date(d.date).toLocaleDateString(undefined, {month:'short', day:'numeric'});
+                ctx.fillText(dateStr, x, height - padding + 15);
+                
+                // Value
+                ctx.fillStyle = "#fff";
+                ctx.fillText(d.weight, x, y - 10);
+            }
+        });
+    }
+
+    // --- TAB SWITCHER ---
+    function switchTab(tab) {
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        event.target.classList.add('active');
+        document.getElementById('log-section').classList.add('hidden');
+        document.getElementById('history-section').classList.add('hidden');
+        document.getElementById('progress-section').classList.add('hidden');
+        document.getElementById(`${tab}-section`).classList.remove('hidden');
+
+        if(tab === 'history') renderHistory();
+        if(tab === 'progress') populateProgressSelect();
+    }
+
+    init();
+</script>
+</body>
+</html>
