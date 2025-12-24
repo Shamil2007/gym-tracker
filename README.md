@@ -48,11 +48,3 @@ A lightweight, offline-first workout tracking application contained entirely wit
 * **Privacy First:** No data is sent to any server. Everything lives in your browser's local storage.
 * **Data Persistence:** Your data remains saved even if you close the browser.
 * **Warning:** Clearing your browser's "Cache and Site Data" will erase your workout history.
-
-## 🤝 Contributing
-
-Feel free to fork this project! Since it is a single file, please ensure any Pull Requests keep the CSS and JS internal within the `index.html` to maintain the "portability" of the app.
-
-## 📄 License
-
-MIT License. Free to use and modify.
