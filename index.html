@@ -179,7 +179,13 @@
     </section>
 </div>
 
+<footer style="text-align: center; margin-top: 40px; border-top: 1px solid var(--border); padding-top: 20px; color: var(--text-muted); font-size: 0.8rem;">
+        &copy; <span id="year"></span> Shamil Sharifzade. All rights reserved.
+    </footer>
+</div>
+
 <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
     // --- STATE MANAGEMENT ---
     const DB_KEY = 'gym_tracker_data_v2';
     // Migration: Try to read old key if new one doesn't exist, otherwise empty
